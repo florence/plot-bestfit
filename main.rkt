@@ -58,9 +58,9 @@
 
   (define lnx   (map log pts-x))
   (define Σylnx (Σ (map * pts-y lnx)))
-  (define Σy    (Σ y))
+  (define Σy    (Σ pts-y))
   (define Σlnx  (Σ lnx))
-  (define Σx    (Σ x))
+  (define Σx    (Σ pts-x))
   
   (define b
     (/ (- (* n Σylnx) (* Σy Σlnx))
