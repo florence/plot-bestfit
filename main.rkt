@@ -1,28 +1,47 @@
 #lang typed/racket
 (provide graph/linear
-         graph/exponential)
+         graph/exponential
+         graph/log
+
+         linear-fit
+         exp-fit
+         log-fit)
+
 (require plot
          math/base)
 
 ;; math from http://mathworld.wolfram.com/LeastSquaresFitting.html
 
+(define-type Grapher (->* ((Listof Real) (Listof Real))
+                          ((Listof Real))
+                          (Values renderer2d renderer2d renderer2d)))
+(define-type Fitter (-> (Listof Real) (Listof Real) (-> Real Real)))
+
+(: graph/linear : Grapher)
 (define (graph/linear pts-x pts-y [error null])
   (graph/gen pts-x pts-y error linear-fit))
+(: graph/exponential : Grapher)
 (define (graph/exponential pts-x pts-y [error null])
   (graph/gen pts-x pts-y error exp-fit))
+(: graph/log : Grapher)
 (define (graph/log pts-x pts-y [error null])
   (graph/gen pts-x pts-y error log-fit))
 
+(: graph/gen : (-> (Listof Real) (Listof Real) (Listof Real) Fitter
+                   (Values renderer2d renderer2d renderer2d)))
 (define (graph/gen pts-x pts-y error fit)
-  (list (points (map list pts-x pts-y)
-                #:x-min 0
-                #:y-min 0)
-        (fit pts-x pts-y)
-        (error-bars (for/list ([x pts-x] [y pts-y] [δ error])
-                     (list x y (* x δ))))))
+  (values (points (map (inst list Real) pts-x pts-y)
+                  #:x-min 0
+                  #:y-min 0)
+          (function (fit pts-x pts-y))
+          (error-bars (map (lambda ([x : Real] [y : Real] [δ : Real])
+                             (list x y (* x δ)))
+                           pts-x pts-y error))))
 
-(define Σ (curry apply +))
+(: Σ : (-> (Listof Real) Real))
+(define (Σ l) (apply + l))
 
+(: linear-fit : Fitter)
 (define (linear-fit pts-x pts-y)
   (define len (length pts-x))
   (define Σx (Σ pts-x))
@@ -36,16 +55,23 @@
   (define offset
     (/ (- Σy (* slope Σx))
        len))
-  (line (lambda (x) (+ (* slope x) offset))))
+  (lambda ([x : Real]) (+ (* slope x) offset)))
 
 ;; see http://mathworld.wolfram.com/LeastSquaresFittingExponential.html
-(define (exp-fit pts-x pts-y)
+(: exp-fit : Fitter)
+(define (exp-fit pts-x p-y)
+
+  (define pts-y (cast p-y (Listof Nonnegative-Real)))
+
   (define lny (map log pts-y))
 
-  (define Σx^2y  (Σ (map * (map sqr pts-x) pts-y)))
-  (define Σylny  (Σ (map * pts-y lny)))
-  (define Σxy    (Σ (map * pts-x pts-y)))
-  (define Σxylny (Σ (map * pts-x pts-y lny)))
+  (: r* : (-> Real * Real))
+  (define r* *)
+
+  (define Σx^2y  (Σ (map r* (map sqr pts-x) pts-y)))
+  (define Σylny  (Σ (map r* pts-y lny)))
+  (define Σxy    (Σ (map r* pts-x pts-y)))
+  (define Σxylny (Σ (map r* pts-x pts-y lny)))
   (define Σy     (Σ pts-y))
 
   (define ΣyΣx^2y-Σxy^2 (- (* Σy Σx^2y) (sqr Σxy)))
@@ -54,11 +80,15 @@
   (define b (/ (- (* Σy Σxylny) (* Σxy Σylny))
                ΣyΣx^2y-Σxy^2))
   (define A (expt euler.0 a))
-  (line (lambda (x) (* A (expt euler.0 (* b x))))))
+  (lambda ([x : Real]) (* A (expt euler.0 (* b x)))))
 
 
 ;; see http://mathworld.wolfram.com/LeastSquaresFittingLogarithmic.html
-(define (log-fit pts-x pts-y)
+(: log-fit : Fitter)
+(define (log-fit p-x p-y)
+  (define pts-x (cast p-x (Listof Nonnegative-Real)))
+  (define pts-y (cast p-y (Listof Nonnegative-Real)))
+
   (define n (length pts-x))
 
   (define lnx   (map log pts-x))
@@ -73,4 +103,4 @@
   (define a
     (/ (- Σy (* b Σlnx))
        n))
-  (line (lambda (x) (+ a (* b (log x))))))
+  (lambda ([x : Real]) (+ a (* b (log (cast x Nonnegative-Real))))))
