@@ -1,8 +1,10 @@
-#lang racket
+#lang typed/racket
 (provide graph/linear
          graph/exponential)
 (require plot
          math/base)
+
+;; math from http://mathworld.wolfram.com/LeastSquaresFitting.html
 
 (define (graph/linear pts-x pts-y [error null])
   (graph/gen pts-x pts-y error linear-fit))
@@ -20,6 +22,7 @@
                      (list x y (* x δ))))))
 
 (define Σ (curry apply +))
+
 (define (linear-fit pts-x pts-y)
   (define len (length pts-x))
   (define Σx (Σ pts-x))
@@ -35,6 +38,7 @@
        len))
   (line (lambda (x) (+ (* slope x) offset))))
 
+;; see http://mathworld.wolfram.com/LeastSquaresFittingExponential.html
 (define (exp-fit pts-x pts-y)
   (define lny (map log pts-y))
 
@@ -53,6 +57,7 @@
   (line (lambda (x) (* A (expt euler.0 (* b x))))))
 
 
+;; see http://mathworld.wolfram.com/LeastSquaresFittingLogarithmic.html
 (define (log-fit pts-x pts-y)
   (define n (length pts-x))
 
@@ -61,7 +66,7 @@
   (define Σy    (Σ pts-y))
   (define Σlnx  (Σ lnx))
   (define Σx    (Σ pts-x))
-  
+
   (define b
     (/ (- (* n Σylnx) (* Σy Σlnx))
        (- (* n (sqr Σlnx)) (sqr Σlnx))))
@@ -69,5 +74,3 @@
     (/ (- Σy (* b Σlnx))
        n))
   (line (lambda (x) (+ a (* b (log x))))))
-
-  
