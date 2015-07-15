@@ -12,9 +12,10 @@
 
 ;; math from http://mathworld.wolfram.com/LeastSquaresFitting.html
 
-(define-type Grapher (->* ((Listof Real) (Listof Real))
-                          ((Listof Real))
-                          (Values renderer2d renderer2d renderer2d)))
+(define-type Grapher
+  (->* ((Listof Real) (Listof Real))
+       ((Listof Real))
+       (Values renderer2d renderer2d renderer2d)))
 (define-type Fitter (-> (Listof Real) (Listof Real) (-> Real Real)))
 
 (: graph/linear : Grapher)
@@ -61,7 +62,7 @@
 (: exp-fit : Fitter)
 (define (exp-fit pts-x p-y)
 
-  (define pts-y (cast p-y (Listof Nonnegative-Real)))
+  (define-values (pts-y Δy) (shift-pos p-y))
 
   (define lny (map log pts-y))
 
@@ -80,14 +81,14 @@
   (define b (/ (- (* Σy Σxylny) (* Σxy Σylny))
                ΣyΣx^2y-Σxy^2))
   (define A (expt euler.0 a))
-  (lambda ([x : Real]) (* A (expt euler.0 (* b x)))))
+  (lambda ([x : Real]) (- (* A (expt euler.0 (* b x))) Δy)))
 
 
 ;; see http://mathworld.wolfram.com/LeastSquaresFittingLogarithmic.html
 (: log-fit : Fitter)
-(define (log-fit p-x p-y)
-  (define pts-x (cast p-x (Listof Nonnegative-Real)))
-  (define pts-y (cast p-y (Listof Nonnegative-Real)))
+(define (log-fit p-x pts-y)
+
+  (define-values (pts-x Δx) (shift-pos p-x))
 
   (define n (length pts-x))
 
@@ -103,4 +104,18 @@
   (define a
     (/ (- Σy (* b Σlnx))
        n))
-  (lambda ([x : Real]) (+ a (* b (log (cast x Nonnegative-Real))))))
+  (lambda ([x : Real]) (+ a (* b (log (cast (+ x Δx) Nonnegative-Real))))))
+
+
+(: shift-pos : (-> (Listof Real) (Values (Listof Nonnegative-Real) Nonnegative-Real)))
+(define (shift-pos pts)
+  (: low : Real)
+  (define low (apply min pts))
+  (: δ : Nonnegative-Real)
+  (define δ (abs (- low 0)))
+  (define-values (pt diff)
+    (if (> low 0)
+        (values pts 0)
+        (values (map (lambda ([x : Real]) (+ x δ)) pts)
+                δ)))
+  (values (cast pts (Listof Nonnegative-Real)) diff))
