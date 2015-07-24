@@ -7,8 +7,7 @@
          exp-fit
          log-fit)
 
-(require plot
-         math/base)
+(require plot math/base)
 
 ;; math from http://mathworld.wolfram.com/LeastSquaresFitting.html
 
@@ -27,6 +26,9 @@
 (: graph/log : Grapher)
 (define (graph/log pts-x pts-y [error null])
   (graph/gen pts-x pts-y error log-fit))
+(: graph/power : Grapher)
+(define (graph/power pts-x pts-y [error null])
+  (graph/gen pts-x pts-y error power-fit))
 
 (: graph/gen : (-> (Listof Real) (Listof Real) (Listof Real) Fitter
                    (Values renderer2d renderer2d renderer2d)))
@@ -105,6 +107,32 @@
     (/ (- Σy (* b Σlnx))
        n))
   (lambda ([x : Real]) (+ a (* b (log (cast (+ x Δx) Nonnegative-Real))))))
+
+;; see http://mathworld.wolfram.com/LeastSquaresFittingPowerLaw.html
+(: power-fit : Fitter)
+(define (power-fit p-x p-y)
+
+  (define-values (pts-x Δx) (shift-pos p-x))
+  (define-values (pts-y Δy) (shift-pos p-y))
+
+  (define lnx (map log pts-x))
+  (define lny (map log pts-y))
+  (define n (length pts-x))
+  (define Σlnx (Σ lnx))
+  (define Σlny (Σ lny))
+  (define Σlnxlny (Σ (map * lnx lny)))
+  (define Σlnx^2 (Σ (map sqr lnx)))
+
+  (define b (/ (- (* n Σlnxlny) (* Σlnx Σlny))
+               (- (* n Σlnx^2) (sqr Σlnx))))
+
+  (define a (/ (- Σlny (* b Σlnx)) n))
+
+  (lambda ([x : Real])
+    (-
+     (* (expt euler.0 a)
+        (expt (cast (+ x Δx) Nonnegative-Real) b))
+     Δy)))
 
 
 (: shift-pos : (-> (Listof Real) (Values (Listof Nonnegative-Real) Nonnegative-Real)))
