@@ -7,7 +7,7 @@
          exp-fit
          log-fit)
 
-(require plot/no-gui math/base)
+(require plot/no-gui)
 
 ;; math from http://mathworld.wolfram.com/LeastSquaresFitting.html
 
@@ -82,8 +82,8 @@
                ΣyΣx^2y-Σxy^2))
   (define b (/ (- (* Σy Σxylny) (* Σxy Σylny))
                ΣyΣx^2y-Σxy^2))
-  (define A (expt euler.0 a))
-  (lambda ([x : Real]) (- (* A (expt euler.0 (* b x))) Δy)))
+  (define A (exp a))
+  (lambda ([x : Real]) (- (* A (exp (* b x))) Δy)))
 
 
 ;; see http://mathworld.wolfram.com/LeastSquaresFittingLogarithmic.html
@@ -130,7 +130,7 @@
 
   (lambda ([x : Real])
     (-
-     (* (expt euler.0 a)
+     (* (exp a)
         (expt (cast (+ x Δx) Nonnegative-Real) b))
      Δy)))
 
