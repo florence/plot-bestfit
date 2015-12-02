@@ -7,7 +7,7 @@
          exp-fit
          log-fit)
 
-(require plot math/base)
+(require plot/no-gui math/base)
 
 ;; math from http://mathworld.wolfram.com/LeastSquaresFitting.html
 
@@ -34,8 +34,8 @@
                    (Values renderer2d renderer2d renderer2d)))
 (define (graph/gen pts-x pts-y error fit)
   (values (points (map (inst list Real) pts-x pts-y)
-                  #:x-min 0
-                  #:y-min 0)
+                  #:x-min (min 0 (apply min pts-x))
+                  #:y-min (min 0 (apply min pts-y)))
           (function (fit pts-x pts-y))
           (error-bars (map (lambda ([x : Real] [y : Real] [δ : Real])
                              (list x y (* x δ)))
