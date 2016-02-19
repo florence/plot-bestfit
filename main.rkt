@@ -13,21 +13,21 @@
 
 (define-type Grapher
   (->* ((Listof Real) (Listof Real))
-       ((Listof Real))
+       ((Maybe (Listof Real)))
        (Values renderer2d renderer2d renderer2d)))
 (define-type Fitter (-> (Listof Real) (Listof Real) (-> Real Real)))
 
 (: graph/linear : Grapher)
-(define (graph/linear pts-x pts-y [error null])
+(define (graph/linear pts-x pts-y [error #f])
   (graph/gen pts-x pts-y error linear-fit))
 (: graph/exponential : Grapher)
-(define (graph/exponential pts-x pts-y [error null])
+(define (graph/exponential pts-x pts-y [error #f])
   (graph/gen pts-x pts-y error exp-fit))
 (: graph/log : Grapher)
-(define (graph/log pts-x pts-y [error null])
+(define (graph/log pts-x pts-y [error #f])
   (graph/gen pts-x pts-y error log-fit))
 (: graph/power : Grapher)
-(define (graph/power pts-x pts-y [error null])
+(define (graph/power pts-x pts-y [error #f])
   (graph/gen pts-x pts-y error power-fit))
 
 (: graph/gen : (-> (Listof Real) (Listof Real) (Listof Real) Fitter
@@ -38,8 +38,8 @@
                   #:y-min (min 0 (apply min pts-y)))
           (function (fit pts-x pts-y))
           (error-bars (map (lambda ([x : Real] [y : Real] [δ : Real])
-                             (list x y (* x δ)))
-                           pts-x pts-y error))))
+                             (list x y (* y δ)))
+                           pts-x pts-y (or error null)))))
 
 (: Σ : (-> (Listof Real) Real))
 (define (Σ l) (apply + l))
