@@ -1,4 +1,4 @@
-#lang debug typed/racket
+#lang typed/racket
 (provide graph/linear
          graph/exponential
          graph/log

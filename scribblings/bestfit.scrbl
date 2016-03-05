@@ -1,4 +1,4 @@
-#lang debug scribble/doc
+#lang scribble/doc
 @(require (except-in "base.rkt" ->)
           plot/utils plot/no-gui)
 @(require (for-label
