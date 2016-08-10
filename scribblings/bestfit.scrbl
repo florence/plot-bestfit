@@ -4,7 +4,7 @@
 @(require (for-label
            (only-in math/flonum fl)
            (only-in typed/racket/base
-                    Listof Nonnegative-Flonum Values -> cast)
+                    Listof Nonnegative-Flonum Values -> Flonum Real)
            (only-in plot/utils renderer2d?)))
 @title{Bestfit: Lines of Best Fit}
 @defmodule[bestfit #:use-sources (bestfit)]
