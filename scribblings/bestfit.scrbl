@@ -5,7 +5,7 @@
            (only-in math/flonum fl)
            (only-in typed/racket/base
                     Listof Nonnegative-Flonum Values -> cast)
-           (only-in plot renderer2d)))
+           (only-in plot/utils renderer2d?)))
 @title{Bestfit: Lines of Best Fit}
 @defmodule[bestfit #:use-sources (bestfit)]
 
@@ -30,23 +30,23 @@ Bestfit is a library for calculating lines of best fit using
 @deftogether[(@defproc[(graph/linear [xs (Listof Nonnegative-Flonum)]
                                      [ys (Listof Nonnegative-Flonum)]
                                      [errors (U #f (Listof Flonum)) #f])
-                       (Values renderer2d renderer2d renderer2d)]
+                       (Values renderer2d? renderer2d? renderer2d?)]
               @defproc[(graph/exponential [xs (Listof Nonnegative-Flonum)]
                                           [ys (Listof Nonnegative-Flonum)]
                                           [errors (U #f (Listof Flonum)) #f])
-                       (Values renderer2d renderer2d renderer2d)]
+                       (Values renderer2d? renderer2d? renderer2d?)]
               @defproc[(graph/log [xs (Listof Nonnegative-Flonum)]
                                   [ys (Listof Nonnegative-Flonum)]
                                   [errors (U #f (Listof Flonum)) #f])
-                       (Values renderer2d renderer2d renderer2d)]
+                       (Values renderer2d? renderer2d? renderer2d?)]
               @defproc[(graph/power [xs (Listof Nonnegative-Flonum)]
                                     [ys (Listof Nonnegative-Flonum)]
                                     [errors (U #f (Listof Flonum)) #f])
-                       (Values renderer2d renderer2d renderer2d)])]{
+                       (Values renderer2d? renderer2d? renderer2d?)])]{
 
 Uses @racket[linear-fit], @racket[exp-fit], @racket[log-fit], @racket[power-fit], to generate three
-@racket[renderer2d]s: A plot of the function of best fit, a plot of the points given by @racket[xs]
-and @racket[ys], and error bars generated. The error bars are generated from @racket[error], which
+@racket[renderer2d?]s: A plot of the points given by @racket[xs]
+and @racket[ys], a plot of the function of best fit, and error bars generated. The error bars are generated from @racket[error], which
 is the percentage error on each y coordinate.
 
 @inter[;(: 3x^2 : Nonnegative-Flonum -> Nonnegative-Flonum)
@@ -54,11 +54,11 @@ is the percentage error on each y coordinate.
        ;(: apply-error : Nonnegative-Flonum -> Nonnegative-Flonum)
        (define (add-error y) (+ y (* y (/ (- (random 4) 2) 10.0))))
        (define exact (function 3x^2 #:label "exact" #:color "blue"))
-       (define-values (fit pts _)
+       (define-values (pts fit _)
          (graph/power (build-list 10 (compose fl add1))
                       (build-list 10 (compose 3x^2 fl add1))))
        (plot (list exact fit pts))
-       (define-values (fit pts err)
+       (define-values (pts fit err)
          (graph/power (build-list 10 (compose fl add1))
                       (build-list 10 (compose add-error 3x^2 fl add1))
                       (build-list 10 (const 0.2))))
