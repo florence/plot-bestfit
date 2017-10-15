@@ -4,38 +4,75 @@
          graph/log
          graph/power
 
-         linear-fit
-         exp-fit
-         log-fit
-         power-fit)
+         linear-fit-params linear-fit
+         exp-fit-params exp-fit
+         log-fit-params log-fit
+         power-fit-params power-fit)
 
-(require plot/no-gui math/flonum)
+(require plot/no-gui math/flonum
+         (for-syntax racket/base syntax/parse))
 
 ;; math from http://mathworld.wolfram.com/LeastSquaresFitting.html
 
+(define-type Flonums (Listof Nonnegative-Flonum))
+(define-type Fit-Params (List Real Real))
+(define-type Fit-Function (-> Real Real))
+
 (define-type Grapher
-  (->* ((Listof Nonnegative-Flonum) (Listof Nonnegative-Flonum))
+  (->* (Flonums Flonums)
        ((Option (Listof Flonum)))
        (Values renderer2d renderer2d renderer2d)))
-(define-type Fitter (-> (Listof Nonnegative-Flonum) (Listof Nonnegative-Flonum)
-                        (-> Real Real)))
 
-(: graph/linear : Grapher)
-(define (graph/linear pts-x pts-y [error #f])
-  (graph/gen pts-x pts-y error linear-fit))
-(: graph/exponential : Grapher)
-(define (graph/exponential pts-x pts-y [error #f])
-  (graph/gen pts-x pts-y error exp-fit))
-(: graph/log : Grapher)
-(define (graph/log pts-x pts-y [error #f])
-  (graph/gen pts-x pts-y error log-fit))
-(: graph/power : Grapher)
-(define (graph/power pts-x pts-y [error #f])
-  (graph/gen pts-x pts-y error power-fit))
+;; (define-fit [fitter
+;;              fit-params
+;;              grapher]
+;;   body ...
+;;   #:params [param-id ...]
+;;   #:function function-output-expr)
+;;
+;; generates functions 'fit-params', 'fitter', and 'grapher'
+;; which use the body expressions to generate a best fit line.
+;; 'param-id's denote the parameters defined by the fitter
+;; to be used in the function.
+(define-syntax define-fit
+  (syntax-parser
+    [(_ [fitter:id
+         fit-params:id
+         grapher:id]
+        calc-form:expr ...
+        #:params [par:id ...]
+        #:function output-expr)
+
+     ; unhygienic identifier for fit-params/fit
+     #:with pts-x (datum->syntax this-syntax 'pts-x)
+     #:with pts-y (datum->syntax this-syntax 'pts-y)
+
+     ; unhygienic identifier for output-expr
+     #:with x (datum->syntax this-syntax 'x)
+
+     ; list of 'Real ...' with length = # of parameters
+     #:with [par-type ...] (map (λ (_) #'Real)
+                                (syntax->list #'[par ...]))
+
+     #'(begin
+         (: fit-params : (-> Flonums Flonums (Values par-type ...)))
+         (define (fit-params pts-x pts-y)
+           calc-form ...
+           (values par ...))
+
+         (: fitter : (-> Flonums Flonums Fit-Function))
+         (define (fitter pts-x pts-y)
+           (define-values [par ...] (fit-params pts-x pts-y))
+           (λ ([x : Real]) output-expr))
+
+         (: grapher : Grapher)
+         (define (grapher pts-x pts-y [error #f])
+           (graph/gen pts-x pts-y error fitter)))]))
+
 
 (: graph/gen : (-> (Listof Nonnegative-Flonum) (Listof Nonnegative-Flonum)
                    (Option (Listof Flonum))
-                   Fitter
+                   (-> Flonums Flonums Fit-Function)
                    (Values renderer2d renderer2d renderer2d)))
 (define (graph/gen pts-x pts-y error fit)
   (values (points (map (inst list Nonnegative-Flonum) pts-x pts-y)
@@ -49,47 +86,68 @@
 (: Σ : (-> (Listof Flonum) Flonum))
 (define (Σ l) (foldl + 0.0 l))
 
-(: linear-fit : Fitter)
-(define (linear-fit pts-x pts-y)
+
+;; --------------------
+;; | linear fit
+
+(define-fit [linear-fit
+             linear-fit-params
+             graph/linear]
+
   (define len (length pts-x))
   (define Σx (Σ pts-x))
   (define Σy (Σ pts-y))
   (define Σxy (Σ (map * pts-x pts-y)))
   (define ΣxΣy (* Σx Σy))
   (define Σx^2 (Σ (map sqr pts-x)))
-  (define slope
+  (define b
     (/ (- (* len Σxy) ΣxΣy)
        (- (* len Σx^2) (sqr Σx))))
-  (define offset
-    (/ (- Σy (* slope Σx))
+  (define a
+    (/ (- Σy (* b Σx))
        len))
-  (lambda ([x : Real]) (+ (* slope (fl x)) offset)))
 
-;; see http://mathworld.wolfram.com/LeastSquaresFittingExponential.html
-(: exp-fit : Fitter)
-(define (exp-fit pts-x pts-y)
+  #:params [a b]
+  #:function (+ a (* b (fl x))))
+
+
+;; --------------------
+;; | exp fit
+
+(define-fit [exp-fit
+             exp-fit-params
+             graph/exponential]
+
+  ;; see http://mathworld.wolfram.com/LeastSquaresFittingExponential.html
 
   (define lny (map log pts-y))
-
   (define x^2 (map sqr pts-x))
   (define Σx^2y  (Σ (map * x^2 pts-y)))
   (define Σylny  (Σ (map * pts-y lny)))
   (define Σxy    (Σ (map * pts-x pts-y)))
   (define Σxylny (Σ (map * pts-x pts-y lny)))
   (define Σy     (Σ pts-y))
-
   (define ΣyΣx^2y-Σxy^2 (- (* Σy Σx^2y) (sqr Σxy)))
   (define a (/ (- (* Σx^2y Σylny) (* Σxy Σxylny))
                ΣyΣx^2y-Σxy^2))
-  (define b (/ (- (* Σy Σxylny) (* Σxy Σylny))
-               ΣyΣx^2y-Σxy^2))
   (define A (exp a))
-  (lambda ([x : Real]) (* A (exp (* b (fl x))))))
+  (define B (/ (- (* Σy Σxylny) (* Σxy Σylny))
+               ΣyΣx^2y-Σxy^2))
+
+  #:params [A B]
+  #:function (* A (exp (* B (fl x)))))
+
+
+;; --------------------
+;; | log fit
 
 (define-predicate nnn? Nonnegative-Flonum)
-;; see http://mathworld.wolfram.com/LeastSquaresFittingLogarithmic.html
-(: log-fit : Fitter)
-(define (log-fit pts-x pts-y)
+
+(define-fit [log-fit
+             log-fit-params
+             graph/log]
+
+  ;; see http://mathworld.wolfram.com/LeastSquaresFittingLogarithmic.html
 
   (: r* : (-> Flonum Flonum * Flonum))
   (define r* *)
@@ -107,16 +165,25 @@
   (define a
     (/ (- Σy (* b Σlnx))
        n))
-  (lambda ([x : Real])
-    (define fx (fl x))
+
+  #:params [a b]
+  #:function
+  (let ([fx (fl x)])
     (if (nnn? fx)
         (+ a (* b (log fx)))
         +nan.0)))
 
+
+;; --------------------
+;; | power fit
+
 (define-predicate pn? Positive-Flonum)
-;; see http://mathworld.wolfram.com/LeastSquaresFittingPowerLaw.html
-(: power-fit : Fitter)
-(define (power-fit pts-x pts-y)
+
+(define-fit [power-fit
+             power-fit-params
+             graph/power]
+
+  ;; see http://mathworld.wolfram.com/LeastSquaresFittingPowerLaw.html
 
   (define lnx (map log pts-x))
   (define lny (map log pts-y))
@@ -125,14 +192,13 @@
   (define Σlny (Σ lny))
   (define Σlnxlny (Σ (map * lnx lny)))
   (define Σlnx^2 (Σ (map sqr lnx)))
-
   (define b (/ (- (* n Σlnxlny) (* Σlnx Σlny))
                (- (* n Σlnx^2) (sqr Σlnx))))
-
   (define a (/ (- Σlny (* b Σlnx)) n))
 
-  (lambda ([x : Real])
-    (define fx (fl x))
+  #:params [a b]
+  #:function
+  (let ([fx (fl x)])
     (if (pn? fx)
         (* (exp a) (expt fx b))
         +nan.0)))
