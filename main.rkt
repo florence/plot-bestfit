@@ -55,14 +55,14 @@
                                 (syntax->list #'[par ...]))
 
      #'(begin
-         (: fit-params : (-> Flonums Flonums (List par-type ...)))
+         (: fit-params : (-> Flonums Flonums (Values par-type ...)))
          (define (fit-params pts-x pts-y)
            calc-form ...
-           (list par ...))
+           (values par ...))
 
          (: fitter : (-> Flonums Flonums Fit-Function))
          (define (fitter pts-x pts-y)
-           (match-define (list par ...) (fit-params pts-x pts-y))
+           (define-values [par ...] (fit-params pts-x pts-y))
            (λ ([x : Real]) output-expr))
 
          (: grapher : Grapher)
@@ -100,15 +100,15 @@
   (define Σxy (Σ (map * pts-x pts-y)))
   (define ΣxΣy (* Σx Σy))
   (define Σx^2 (Σ (map sqr pts-x)))
-  (define slope
+  (define b
     (/ (- (* len Σxy) ΣxΣy)
        (- (* len Σx^2) (sqr Σx))))
-  (define offset
-    (/ (- Σy (* slope Σx))
+  (define a
+    (/ (- Σy (* b Σx))
        len))
 
-  #:params [slope offset]
-  #:function (+ (* slope (fl x)) offset))
+  #:params [a b]
+  #:function (+ a (* b (fl x))))
 
 
 ;; --------------------
